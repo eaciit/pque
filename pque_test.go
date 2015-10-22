@@ -41,5 +41,10 @@ func Test_Que(t *testing.T) {
 	q.KeySendDone()
 
 	q.WaitForCompletion()
-	fmt.Printf("Number of result is %d, value are %v \n", len(result), result)
+
+	if len(result) == jobCount {
+		fmt.Printf("Number of result is %d, value are %v \n", len(result), result)
+	} else {
+		t.Errorf("Out of %d jobs only %d has been completed", jobCount, len(result))
+	}
 }
