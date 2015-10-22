@@ -93,8 +93,9 @@ func (q *Que) runProcess() {
 					que.ProcessedJob++
 					if que.Fn != nil {
 						que.results <- que.Fn(k)
+					} else {
+						q.wg.Done()
 					}
-					q.wg.Done()
 				}
 			}
 		}(q)
@@ -111,6 +112,7 @@ func (q *Que) receiveResult() {
 			q.CompletedJob++
 			if q.FnDone != nil {
 				q.FnDone(r)
+				q.wg.Done()
 			}
 		}
 	}
