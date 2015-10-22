@@ -2,15 +2,17 @@ package pque
 
 import (
 	"sync"
+	"time"
 )
 
 type Que struct {
 	WorkerCount, JobCount, PreparedJob int
 	ProcessedJob, CompletedJob         int
-	SimultanProcess, AllKeyHasBeenSent bool
-	Fn                                 func(in interface{}) interface{}
-	FnDone                             func(in interface{})
-	IsRunning                          bool
+	AllKeyHasBeenSent                  bool
+	Fn                                 func(interface{}) interface{}
+	FnDone                             func(interface{})
+	FnWaiting                          func(*Que)
+	IsRunning, Completed               bool
 
 	keys           chan interface{}
 	results        chan interface{}
@@ -21,16 +23,20 @@ type Que struct {
 
 func NewQue() *Que {
 	q := new(Que)
-	q.SimultanProcess = true
-	q.wg = new(sync.WaitGroup)
 	return q
 }
 
 func (q *Que) WaitForKeys() {
 	q.initChannel()
-	if q.SimultanProcess == true {
-		q.runProcess()
-	}
+	q.runProcess()
+	go func() {
+		for !q.AllKeyHasBeenSent {
+			select {
+			case <-q.keySentChannel:
+				q.AllKeyHasBeenSent = true
+			}
+		}
+	}()
 }
 
 func (q *Que) SendKey(k interface{}) {
@@ -44,21 +50,16 @@ func (q *Que) SendKey(k interface{}) {
 func (q *Que) KeySendDone() {
 	q.initChannel()
 	q.keySentChannel <- true
-	if q.SimultanProcess == false {
-		q.runProcess()
-	}
 }
 
 func (q *Que) WaitForCompletion() {
 	q.initChannel()
 	for !q.AllKeyHasBeenSent {
-		select {
-		case <-q.keySentChannel:
-			q.AllKeyHasBeenSent = true
-		}
+		time.Sleep(1 * time.Microsecond)
 	}
 	q.wg.Wait()
 	q.IsRunning = false
+	q.Completed = true
 }
 
 func (q *Que) initChannel() {
@@ -73,10 +74,17 @@ func (q *Que) initChannel() {
 	if q.keySentChannel == nil {
 		q.keySentChannel = make(chan bool)
 	}
+
+	if q.wg == nil {
+		q.wg = new(sync.WaitGroup)
+	}
 }
 
 func (q *Que) runProcess() {
 	q.IsRunning = true
+	if q.FnWaiting != nil {
+		go q.FnWaiting(q)
+	}
 	for widx := 0; widx < q.WorkerCount; widx++ {
 		go func(que *Que) {
 			for !que.AllKeyHasBeenSent {
@@ -91,6 +99,8 @@ func (q *Que) runProcess() {
 			}
 		}(q)
 	}
+
+	go q.receiveResult()
 }
 
 func (q *Que) receiveResult() {
