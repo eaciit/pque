@@ -8,12 +8,12 @@ import (
 
 func Test_Que(t *testing.T) {
 	fmt.Println("Test Que")
-	jobCount := 5
+	jobCount := 1000
 
 	result := make([]int, 0)
 
 	q := NewQue()
-	q.WorkerCount = 2
+	q.WorkerCount = 200
 	q.Fn = func(in interface{}) interface{} {
 		i := in.(int)
 		fmt.Printf("Rcvd key: %d\n", i)
@@ -26,12 +26,7 @@ func Test_Que(t *testing.T) {
 		result = append(result, i)
 	}
 	q.FnWaiting = func(q *Que) {
-		for q.Completed == false {
-			select {
-			case <-time.After(1 * time.Second):
-				fmt.Printf("Processed: %d Completed: %d\n", q.ProcessedJob, q.CompletedJob)
-			}
-		}
+		fmt.Printf("Processed: %d Completed: %d\n", q.ProcessedJob, q.CompletedJob)
 	}
 
 	q.WaitForKeys()

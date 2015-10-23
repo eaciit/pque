@@ -12,6 +12,7 @@ type Que struct {
 	Fn                                 func(interface{}) interface{}
 	FnDone                             func(interface{})
 	FnWaiting                          func(*Que)
+	WaitingInterval                    time.Duration
 	IsRunning, Completed               bool
 
 	keys           chan interface{}
@@ -78,12 +79,23 @@ func (q *Que) initChannel() {
 	if q.wg == nil {
 		q.wg = new(sync.WaitGroup)
 	}
+
+	if q.WaitingInterval == time.Duration(0) {
+		q.WaitingInterval = 1 * time.Millisecond
+	}
 }
 
 func (q *Que) runProcess() {
 	q.IsRunning = true
 	if q.FnWaiting != nil {
-		go q.FnWaiting(q)
+		go func(q *Que) {
+			for q.Completed == false {
+				select {
+				case <-time.After(q.WaitingInterval):
+					q.FnWaiting(q)
+				}
+			}
+		}(q)
 	}
 	for widx := 0; widx < q.WorkerCount; widx++ {
 		go func(que *Que) {
