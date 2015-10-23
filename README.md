@@ -1,5 +1,5 @@
 # pque
-Library to perform job worker pools using Go. 
+Library to perform job worker pools using Golang (Go) . 
 
 ## Feature
 - Configurable number of worker
