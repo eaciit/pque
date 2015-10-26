@@ -45,6 +45,7 @@ func (q *Que) SendKey(k interface{}) {
 	if q.keys == nil {
 		q.keys = make(chan interface{})
 	}
+	q.PreparedJob++
 	q.keys <- k
 }
 
@@ -106,8 +107,8 @@ func (q *Que) runProcess() {
 					if que.Fn != nil {
 						que.results <- que.Fn(k)
 					} else {
-						q.CompletedJob++
-						q.wg.Done()
+						que.CompletedJob++
+						que.wg.Done()
 					}
 				}
 			}
